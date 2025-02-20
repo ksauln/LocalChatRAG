@@ -25,7 +25,7 @@ llm_model = "llama3.2"  #Update with your actual LLM model name.
 st.title("Document Q&A with LLM and Chat History")
 st.header("Step 1: Upload and Process Documents")
 
-folder_path = st.text_input("Enter the folder path containing your DOCX/PDF documents:")
+folder_path = st.text_input("Enter the folder path containing your DOCX/PDF/TXT documents:")
 
 if st.button("Process Documents"):
     if not folder_path or not os.path.exists(folder_path):
