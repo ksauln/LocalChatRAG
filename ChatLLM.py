@@ -15,10 +15,6 @@ def query_llm_cot(question, db, model_selected_llm):
     formatted_context = format_docs(retrieved_docs)
     sources = [doc.metadata.get("source", "Unknown") for doc in retrieved_docs]
 
-    #Extra key words from the question using LLM
-    #use those key words to parse though the document for RAG
-    #pull out those docs to use?
-
     # **Step 1: Generate Reasoning Plan**
     reasoning_steps_prompt = f"""For the given question, generate a sequence of reasoning steps to follow.
 
