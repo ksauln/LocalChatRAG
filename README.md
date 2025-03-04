@@ -60,7 +60,7 @@ source venv/bin/activate
 venv\Scripts\activate
 
 # Install required packages
-pip install streamlit langchain langchain_community chromadb python-docx PyPDF2
+pip install streamlit langchain langchain_community chromadb python-docx PyPDF2 langchain_core langchain_ollama langchain_chroma
 ```
 
 ## Project Structure
