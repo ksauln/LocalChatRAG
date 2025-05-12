@@ -1,6 +1,7 @@
 import os
 import glob
 import time
+import tempfile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_chroma import Chroma
@@ -8,6 +9,33 @@ from langchain.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
 from langchain_core.runnables import RunnablePassthrough
 from langchain.schema import format_document, Document
 
+
+
+def load_uploaded_documents(uploaded_files):
+    all_docs = []
+    for uploaded_file in uploaded_files:
+        suffix = os.path.splitext(uploaded_file.name)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_path = tmp_file.name
+        
+        if suffix == ".pdf":
+            loader = PyPDFLoader(tmp_path)
+        elif suffix == ".docx":
+            loader = Docx2txtLoader(tmp_path)
+        elif suffix == ".txt":
+            loader = TextLoader(tmp_path)
+        else:
+            continue  # Skip unsupported files
+
+        docs = loader.load()
+        # Attach original filename as metadata
+        for doc in docs:
+            doc.metadata["source"] = uploaded_file.name
+        all_docs.extend(docs)
+        os.remove(tmp_path)  # Clean up temp file
+
+    return all_docs
 
 
 def load_documents(root_folder_path):
