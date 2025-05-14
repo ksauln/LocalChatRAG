@@ -20,7 +20,7 @@ embedding_options = ["nomic-embed-text", "snowflake-arctic-embed"]  # Adjust acc
 embed_model = st.sidebar.selectbox("Select Embedding Model", embedding_options)
 
 # Reasoning style toggle
-reasoning_mode = st.sidebar.radio("Reasoning Method", options=["Chain-of-Thought", "Standard"])
+reasoning_mode = st.sidebar.radio("Reasoning Method", options=["Standard","Chain-of-Thought"])
 use_cot = reasoning_mode == "Chain-of-Thought"
 
 
@@ -54,21 +54,21 @@ with tabs[0]:
 
     if use_existing and existing_dbs:
         vector_db_name = st.selectbox("Select an existing VectorDB", existing_dbs)
-        folder_path = st.text_input("(Optional Local) Enter folder path to update this VectorDB:")
-        uploaded_files = st.file_uploader("(Optional Remote) Upload new documents to update this VectorDB", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+        #folder_path = st.text_input("(Optional Local) Enter folder path to update this VectorDB:")
+        uploaded_files = st.file_uploader("(Optional) Upload new documents to update this VectorDB", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
         update_mode = st.checkbox("Update existing VectorDB with new documents")
     else:
         vector_db_name = st.text_input("Enter a name for this VectorDB", value="default_db")
-        folder_path = st.text_input("(Local) Enter folder path for this VectorDB:")
-        uploaded_files = st.file_uploader("(Remote) Upload your documents (PDF, DOCX, TXT)", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+        #folder_path = st.text_input("(Local) Enter folder path for this VectorDB:")
+        uploaded_files = st.file_uploader("Upload your documents (PDF, DOCX, TXT)", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
 
     if st.button("Process Documents"):
         documents = []
         db_path = os.path.join(db_dir, f"{vector_db_name}.db")
 
-        if folder_path and os.path.isdir(folder_path):
-            with st.spinner("Loading documents from folder..."):
-                documents = load_documents(folder_path)
+        #if folder_path and os.path.isdir(folder_path):
+         #   with st.spinner("Loading documents from folder..."):
+          #      documents = load_documents(folder_path)
 
         if not documents and uploaded_files:
             with st.spinner("Processing uploaded files..."):

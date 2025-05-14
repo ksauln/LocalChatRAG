@@ -38,6 +38,9 @@ def load_uploaded_documents(uploaded_files):
     return all_docs
 
 
+
+# not currently used
+'''
 def load_documents(root_folder_path):
     """Recursively load and categorize Word, PDF, and TXT documents from a folder and its subdirectories,
     storing filenames in metadata.
@@ -92,6 +95,7 @@ def load_documents(root_folder_path):
 
     print(f'Documents Loaded! Total: {len(documents)}')
     return documents
+'''
 
 def chunk_text(documents, chunk_size=300, chunk_overlap=125):
     """Split the text from documents into smaller chunks to facilitate processing.
