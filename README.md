@@ -5,8 +5,12 @@
 This project provides a web-based chat application built with Streamlit that allows users to:
 - **Ingest Documents:** Recursively scan a folder (and its subdirectories) for DOCX, PDF, and TXT files.
 - **Process and Index:** Load and chunk the documents, then store them in a vector database using embeddings.
-- **Query with an LLM:** Use a chain-of-thought (CoT) approach to query the documents via an LLM (powered by Ollama).
+- **Query with an LLM:** Use either chain-of-thought (CoT) or normal querying with a toggleable setting.
+- **Select Models Dynamically:** Choose which LLM and embedding model to use from the sidebar.
 - **Persist Chat History:** Save conversation history using SQLChatMessageHistory, tied to a user ID, with the option to clear history and start a new chat.
+- **See Metadata in Output:** Includes elapsed time and tokens/sec generation info.
+- **Manage Vector DBs:** View and delete vector DBs from the sidebar interface.
+- **Concise Source Attribution:** Outputs unique file names instead of repeated temp file references.
 
 ## Table of Contents
 
@@ -19,7 +23,7 @@ This project provides a web-based chat application built with Streamlit that all
 - [Detailed Description](#detailed-description)
   - [Document Ingestion and Processing (`ChatUpload.py`)](#document-ingestion-and-processing-chatuploadpy)
   - [LLM Querying with Chain-of-Thought (`ChatLLM.py`)](#llm-querying-with-chain-of-thought-chatllmpy)
-  - [Chat Interface and Persistent History (`ChatUI.py`)](#chat-interface-and-persistent-history-apppy)
+  - [Chat Interface and Persistent History (`ChatUI.py`)](#chat-interface-and-persistent-history-chatuipy)
 - [How to Run the App](#how-to-run-the-app)
 - [Customization and Troubleshooting](#customization-and-troubleshooting)
 
@@ -27,16 +31,20 @@ This project provides a web-based chat application built with Streamlit that all
 
 The chat app allows users to easily upload a folder containing documents, process them into a searchable vector database, and then ask questions using a sophisticated LLM reasoning process. Each conversation is stored in a SQL-backed chat history, making it possible to review past interactions or clear them to start anew.
 
+### Preview
+
+![Streamlit Chat Interface](Streamlit-Interface.png)
+
 ## Requirements
 
 - **Python 3.8+**
 - **Ollama** – A tool to run LLMs locally.
 - Python packages:
   - `streamlit`
-  - `langchain` and `langchain_community`
-  - `chromadb` (or another vector DB backend)
-  - Document loader packages like `python-docx` and `PyPDF2`
-  - Additional dependencies as required
+  - `langchain`, `langchain_community`
+  - `chromadb`
+  - `PyPDF2`, `python-docx`
+  - Any additional dependencies required by your selected LLM
 
 ## Installation
 
@@ -60,7 +68,7 @@ source venv/bin/activate
 venv\Scripts\activate
 
 # Install required packages
-pip install streamlit langchain langchain_community chromadb python-docx PyPDF2 langchain_core langchain_ollama langchain_chroma
+pip install streamlit langchain langchain_community chromadb python-docx PyPDF2
 ```
 
 ## Project Structure
@@ -68,8 +76,8 @@ pip install streamlit langchain langchain_community chromadb python-docx PyPDF2 
 ```
 .
 ├── ChatUpload.py     # Handles document loading, chunking, and vector DB creation/update.
-├── ChatLLM.py        # Contains the advanced LLM query function with chain-of-thought reasoning.
-├── ChatUI.py         # The Streamlit app that ties everything together.
+├── ChatLLM.py        # Contains the LLM query logic with support for CoT and standard queries.
+├── ChatUI.py         # The Streamlit app with sidebar model selectors and query toggles.
 └── README.md         # This documentation file.
 ```
 
@@ -77,39 +85,48 @@ pip install streamlit langchain langchain_community chromadb python-docx PyPDF2 
 
 ### Document Ingestion and Processing (`ChatUpload.py`)
 
-**Purpose:**
-- To scan a specified root folder and all its subdirectories for DOCX, PDF, and TXT files, load them using dedicated loaders, and store file metadata (e.g., filename).
+**Purpose**
 
-**Key Functions:**
-- `load_documents(root_folder_path)`: Recursively searches the folder for files with extensions .docx, .pdf, and .txt and loads them.
-- `chunk_text(documents, chunk_size=300, chunk_overlap=125)`: Splits loaded documents into smaller chunks to optimize for memory usage and efficient retrieval.
-- `create_or_update_vector_db(chunks, model_selected_embedding, db_path)`: Creates or updates a vector database with the document chunks using embeddings.
+Scans a specified folder and subdirectories for DOCX, PDF, and TXT files, loads them using format-specific loaders, and extracts metadata (like filenames).
 
-### LLM Querying with Chain-of-Thought (`ChatLLM.py`)
+**Key Functions**
 
-**Purpose:**
-- To generate answers to user queries using an LLM with a multi-step chain-of-thought approach:
-  1. **Generate Reasoning Steps:** Create a step-by-step plan for answering the question.
-  2. **Execute and Verify:** Use the plan along with relevant context from the vector database to generate and refine the answer.
+- `load_documents(root_folder_path)`: Recursively searches for supported files and loads them.
+- `chunk_text(documents, chunk_size=300, chunk_overlap=125)`: Breaks text into manageable chunks for vector DB storage.
+- `create_or_update_vector_db(chunks, model_selected_embedding, db_path)`: Stores chunks using embedding model into a vector DB.
 
-**Key Function:**
-- `query_llm_cot(question, db, model_selected_llm)`: Retrieves context from the vector DB, constructs prompts for reasoning, and returns the final answer along with document sources.
+---
+
+### LLM Querying (`ChatLLM.py`)
+
+**Purpose**
+
+Generates answers using the selected LLM via:
+
+- `query_llm_cot`: Chain-of-thought style multi-step reasoning.
+- `query_llm_norm`: Standard direct question answering.
+
+**Metadata Included**
+
+- Elapsed time  
+- Tokens per second  
+- Unique file source references (displayed by original filename only)
+
+---
 
 ### Chat Interface and Persistent History (`ChatUI.py`)
 
-**Purpose:**
-- Provides a user-friendly web interface where users can:
-  - Specify a folder path for document ingestion.
-  - Process the documents and build the vector database.
-  - Set up a user-specific chat history using SQLChatMessageHistory (with new parameters like `connection_string` and `session_id`).
-  - Ask questions and view answers, complete with conversation history.
-  - Clear the chat history to start a new conversation.
+**Purpose**
 
-**Key Features:**
-- **Document Processing:** Input a folder path and process all DOCX, PDF, and TXT files.
-- **Persistent Chat History:** Save user conversations in a SQL database.
-- **New Chat Option:** Clear existing history to start a fresh conversation.
-- **LLM Querying:** Submit a query, retrieve context, and display the LLM-generated answer with source details.
+Streamlit frontend that allows:
+
+- Folder input or file upload  
+- Document processing and DB creation  
+- Dynamic selection of LLM and embedding model from the sidebar  
+- Toggle between CoT or direct query mode  
+- Persistent conversation history (via `SQLChatMessageHistory`)  
+- Ability to clear history and start new chats  
+- View and delete existing vector DBs in the interface
 
 ## How to Run the App
 
@@ -139,14 +156,27 @@ pip install streamlit langchain langchain_community chromadb python-docx PyPDF2 
 
 ## Customization and Troubleshooting
 
-- **Model Settings:**
-  - Update model names in the code (e.g., `your-embedding-model` and `your-llm-model`) to match your Ollama configuration.
+### Model and Embedding Settings
 
-- **Database Configuration:**
-  - Modify the `db_path` for the vector database or change the SQLite connection string in the chat history configuration as needed.
+Use the sidebar to choose from installed LLM and embedding models dynamically.
 
-- **Clearing Chat History:**
-  - The app provides an option to clear chat history. Ensure that your version of `SQLChatMessageHistory` (imported from `langchain_community.chat_message_histories`) supports the `clear()` method. If not, refer to the LangChain documentation for guidance.
+### Vector DB Management
 
-- **Troubleshooting:**
-  - If you encounter module import warnings or errors (e.g., deprecation messages), verify that you are using the latest versions of the required packages and refer to the updated LangChain documentation.
+View and delete existing `.db` files from the sidebar interface.
+
+### Chat History
+
+Tied to a unique session ID. Clear history to begin a new conversation.
+
+### Performance Metadata
+
+Display includes total response time and generation rate (tokens/sec).
+
+### Troubleshooting Tips
+
+- Ensure you’re using the latest LangChain versions.
+- If a model isn’t loading, confirm it’s installed via Ollama and matches the name used (e.g., `your-embedding-model` and `your-llm-model`).
+- Modify the `db_path` for the vector database or change the SQLite connection string in the chat history configuration as needed.
+- The app provides an option to clear chat history. Ensure that your version of `SQLChatMessageHistory` (imported from `langchain_community.chat_message_histories`) supports the `clear()` method. If not, refer to the LangChain documentation for guidance.
+- For custom swap or memory configurations on Jetson devices, see NVIDIA’s official performance docs.
+- If you encounter module import warnings or errors (e.g., deprecation messages), verify that you are using the latest versions of the required packages and refer to the updated LangChain documentation.
