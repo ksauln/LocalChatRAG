@@ -8,9 +8,9 @@ This project provides a web-based chat application built with Streamlit that all
 - **Query with an LLM:** Use either chain-of-thought (CoT) or normal querying with a toggleable setting.
 - **Select Models Dynamically:** Choose which LLM and embedding model to use from the sidebar.
 - **Persist Chat History:** Save conversation history using SQLChatMessageHistory, tied to a user ID, with the option to clear history and start a new chat.
-- **See Metadata in Output:** Includes elapsed time and tokens/sec generation info.
+- **See Metadata in Output:** Includes elapsed time info.
 - **Manage Vector DBs:** View and delete vector DBs from the sidebar interface.
-- **Concise Source Attribution:** Outputs unique file names instead of repeated temp file references.
+- **Concise Source Attribution:** Outputs unique file names of uploaded files referenced.
 
 ## Table of Contents
 
