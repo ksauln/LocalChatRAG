@@ -1,179 +1,205 @@
 import os
-import time
-import streamlit as st
-from pathlib import Path
 import shutil
+from pathlib import Path
+import streamlit as st
+import time
+import tiktoken
 
-st.set_page_config(page_title="LocalChatRAG", layout="wide")
-
-# =============================================================================
-# Sidebar config
-# =============================================================================
-st.sidebar.title("Model & Reasoning Configuration")
-
-# LLM model selector
-llm_options = ["llama3.2", "qwen3:4b", "gemma3:4b", "deepseek-r1:7b", "mistral"]  # Customize based on your Ollama setup
-llm_model = st.sidebar.selectbox("Select LLM Model", llm_options)
-
-# Embedding model selector
-embedding_options = ["nomic-embed-text", "snowflake-arctic-embed"]  # Adjust accordingly
-embed_model = st.sidebar.selectbox("Select Embedding Model", embedding_options)
-
-# Reasoning style toggle
-reasoning_mode = st.sidebar.radio("Reasoning Method", options=["Standard","Chain-of-Thought"])
-use_cot = reasoning_mode == "Chain-of-Thought"
-
-
-# =============================================================================
-# Main config
-# =============================================================================
-
-# Import document processing functions from ChatUpload.py
-from ChatUpload import load_uploaded_documents, chunk_text, create_or_update_vector_db
-# Import the advanced chain-of-thought LLM query function from ChatLLM.py
+from ChatUpload import (
+    # load_documents,
+    load_uploaded_documents,
+    chunk_text,
+    create_or_update_vector_db,
+)
 from ChatLLM import query_llm_cot, query_llm_norm
-# Updated import for SQLChatMessageHistory with new parameters.
-from langchain_community.chat_message_histories import SQLChatMessageHistory
+from langchain.embeddings import OllamaEmbeddings
+from langchain.vectorstores import Chroma
 
+
+st.title("Document Q&A with LLM and Chat History")
 # Tabs for chat and DB explorer
 tabs = st.tabs(["Chat Interface", "Explore VectorDBs"])
 
+# ----------------------
+# Session State Defaults
+# ----------------------
+def init_session_state():
+    defaults = {
+        'chat_history': [],
+        'vector_db_name': None,
+        'db': None,
+        'model_selected_llm': 'llama3.2',
+        'model_selected_embedding': 'nomic-embed-text',
+        'reasoning_mode': 'Standard',
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
+
+init_session_state()
+
+# ----------------------
+# Helpers: Load Vector DB, fetch DBs, clear question state
+# ----------------------
+DB_DIR = "vector_dbs"
+os.makedirs(DB_DIR, exist_ok=True)
+
+def load_vector_db(name: str, embedding_model: str) -> Chroma:
+    """Load an existing Chroma vector DB"""
+    persist_path = os.path.join(DB_DIR, f"{name}.db")
+    embeddings = OllamaEmbeddings(model=embedding_model)
+    return Chroma(persist_directory=persist_path, embedding_function=embeddings)
+
+# Fetch list of existing DBs
+_db_files = list(Path(DB_DIR).glob("*.db"))
+_db_names = [f.stem for f in _db_files]
+
+# ----------------------
+# Sidebar Configuration
+# ----------------------
+st.sidebar.title("Configuration")
+
+# LLM Selector
+st.session_state.model_selected_llm = st.sidebar.selectbox(
+    "LLM Model", ["llama3.2", "qwen3:4b", "gemma3:4b", "mistral", "deepseek-r1:8b", "deepseek-r1:7b", "phi4-mini:3.8b"],
+    index=["llama3.2", "qwen3:4b", "gemma3:4b", "mistral", "deepseek-r1:8b", "deepseek-r1:7b", "phi4-mini:3.8b"].index(st.session_state.model_selected_llm)
+)
+
+#removing this as would need to make sure the same embedding model is used for the Q&A as the vector DB
+# Embedding Selector
+# st.session_state.model_selected_embedding = st.sidebar.selectbox(
+#     "Embedding Model", ["nomic-embed-text", "snowflake-arctic-embed"],
+#     index=["nomic-embed-text", "snowflake-arctic-embed"].index(st.session_state.model_selected_embedding)
+# )
+
+# Reasoning Style Toggle
+st.session_state.reasoning_mode = st.sidebar.radio(
+    "Reasoning Method", ["Standard", "Chain-of-Thought"],
+    index=["Standard", "Chain-of-Thought"].index(st.session_state.reasoning_mode)
+)
+
+# Refresh session button
+if st.sidebar.button("🔄 Refresh Session"):
+    st.session_state.chat_history = []
+    st.sidebar.success("Session history cleared.")
+
+# ----------------------
+# Main Chat Interface
+# ----------------------
 with tabs[0]:
-    # =============================================================================
-    # Step 1: Document Upload & Processing
-    # =============================================================================
-    st.title("Document Q&A with LLM and Chat History")
-    st.header("Step 1: Upload and Process Documents")
+    # ----------------------
+    # Step 1: Document Processing
+    # ----------------------
+    st.header("📁 Step 1: Upload and Process Documents")
 
-
-    db_dir = "vector_dbs"
-    os.makedirs(db_dir, exist_ok=True)
-    existing_dbs = [f.stem for f in Path(db_dir).glob("*.db")]
-
-    use_existing = st.checkbox("Use existing VectorDB", value=True)
-
-    if use_existing and existing_dbs:
-        vector_db_name = st.selectbox("Select an existing VectorDB", existing_dbs)
-        #folder_path = st.text_input("(Optional Local) Enter folder path to update this VectorDB:")
-        uploaded_files = st.file_uploader("(Optional) Upload new documents to update this VectorDB", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
-        update_mode = st.checkbox("Update existing VectorDB with new documents")
+    # Select existing Vector DB (main window)
+    if _db_names:
+        main_selected = st.selectbox(
+            "Select Existing Vector DB (or create new below)", _db_names,
+            index=_db_names.index(st.session_state.vector_db_name) if st.session_state.vector_db_name in _db_names else 0,
+            key="main_selected_db"
+        )
+        if main_selected != st.session_state.vector_db_name:
+            st.session_state.vector_db_name = main_selected
+            st.session_state.db = load_vector_db(main_selected, st.session_state.model_selected_embedding)
     else:
-        vector_db_name = st.text_input("Enter a name for this VectorDB", value="default_db")
-        #folder_path = st.text_input("(Local) Enter folder path for this VectorDB:")
-        uploaded_files = st.file_uploader("Upload your documents (PDF, DOCX, TXT)", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+        st.info("No existing vector databases found. Create one below.")
 
-    if st.button("Process Documents"):
+    #if not create a new one
+    #folder_path = st.text_input("Enter folder path", key="folder_path")
+    uploaded = st.file_uploader("Upload files", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+    new_db_name = st.text_input("Name for Vector DB", key="new_db_name")
+    if st.button("Process and Create/Update DB"):
         documents = []
-        db_path = os.path.join(db_dir, f"{vector_db_name}.db")
-
-        #if folder_path and os.path.isdir(folder_path):
-         #   with st.spinner("Loading documents from folder..."):
-          #      documents = load_documents(folder_path)
-
-        if not documents and uploaded_files:
-            with st.spinner("Processing uploaded files..."):
-                documents = load_uploaded_documents(uploaded_files)
-
+        # if folder_path and os.path.isdir(folder_path):
+        #     with st.spinner("Loading documents from folder..."):
+        #         documents = load_documents(folder_path)
+        if not documents and uploaded:
+            with st.spinner("Loading uploaded files..."):
+                documents = load_uploaded_documents(uploaded)
         if not documents:
-            if use_existing:
-                st.info("Using existing VectorDB without updates.")
-            else:
-                st.error("No valid documents found. Please check your folder path or upload supported files.")
+            st.error("No valid documents found. Provide a valid folder or upload files.")
         else:
             st.success(f"Loaded {len(documents)} documents.")
             with st.spinner("Chunking documents..."):
                 chunks = chunk_text(documents)
             st.success(f"Created {len(chunks)} text chunks.")
-
-            model_selected_embedding = embed_model
+            db_path = os.path.join(DB_DIR, f"{new_db_name}.db")
             with st.spinner("Creating/updating vector database..."):
-                vectordb = create_or_update_vector_db(chunks, model_selected_embedding, db_path)
-            st.session_state.vectordb = vectordb
-            st.success("Documents processed and vector DB is ready!")
+                create_or_update_vector_db(
+                    chunks,
+                    model_selected_embedding=st.session_state.model_selected_embedding,
+                    db_path=db_path,
+                )
+            st.success(f"Vector DB '{new_db_name}' is ready.")
+            st.session_state.vector_db_name = new_db_name
+            st.session_state.db = load_vector_db(new_db_name, st.session_state.model_selected_embedding)
+
+    # ----------------------
+    # Step 2: Chat with Documents
+    # ----------------------
 
 
-    # =============================================================================
-    # Step 2: Chat History Setup (using SQLChatMessageHistory tied to a user ID)
-    # =============================================================================
-    st.header("Step 2: Chat History Setup")
-    user_id = st.text_input("Enter your User ID for chat history:")
-
-    if user_id:
-        # Instantiate or load the chat history for this user.
-        # Using the new parameter names: `connection_string` and `session_id`.
-        history = SQLChatMessageHistory(
-            connection_string="sqlite:///chat_history.db",  # SQLite connection string.
-            table_name="chat_history",
-            session_id=user_id
-        )
-        st.session_state.chat_history = history
-        st.success(f"Chat history loaded for user: {user_id}")
-
-        # Provide an option to start a new chat (clear the existing chat history)
-        if st.button("Start New Chat (Clear History)"):
-            try:
-                # Assuming SQLChatMessageHistory has a clear() method.
-                st.session_state.chat_history.clear()
-                st.success("Chat history cleared! You can now start a new chat.")
-            except Exception as e:
-                st.error(f"Failed to clear chat history: {e}")
-
-    # =============================================================================
-    # Step 3: Ask a Question (LLM Query with Chain-of-Thought)
-    # =============================================================================
-    st.header("Step 3: Ask a Question About the Documents")
-    query = st.text_input("Enter your question:")
+    st.header("💬 Chat with Documents")
+    question = st.text_input("Ask a question...")
 
     if st.button("Get Answer"):
-        if "vectordb" not in st.session_state:
-            st.error("Please process documents first!")
-        elif "chat_history" not in st.session_state:
-            st.error("Please set up your chat history by providing your User ID!")
-        elif not query:
-            st.error("Please enter a question.")
-        else:
-            # Retrieve the chat history from session_state.
-            chat_history = st.session_state.chat_history
-            
-            # Add the user's query to the chat history.
-            chat_history.add_user_message(query)
-            
+        if question and st.session_state.db:
             with st.spinner("Generating answer..."):
-                # Call the chain-of-thought LLM query function.
                 start_time = time.time()
-                if use_cot:
-                    result = query_llm_cot(query, st.session_state.vectordb, model_selected_llm=llm_model)
+
+                if st.session_state.reasoning_mode == "Chain-of-Thought":
+                    result = query_llm_cot(
+                        question,
+                        st.session_state.db,
+                        st.session_state.model_selected_llm,
+                    )
                 else:
-                    result = query_llm_norm(query, st.session_state.vectordb, model_selected_llm=llm_model)
-                elapsed_time = time.time() - start_time
-                minutes = int(elapsed_time // 60)
-                seconds = int(elapsed_time % 60)
+                    result = query_llm_norm(
+                        question,
+                        st.session_state.db,
+                        st.session_state.model_selected_llm,
+                    )
+            st.session_state.chat_history.append({
+                "question": question,
+                "answer": result["answer"],
+                "sources": result["sources"],
+            })
+
+            elapsed_time = time.time() - start_time
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+            # get the encoding
+            try:
+                encoding = tiktoken.encoding_for_model(st.session_state.model_selected_llm)
+            except KeyError:
+                # fallback if the exact model isn’t in tiktoken’s mapping
+                encoding = tiktoken.get_encoding("cl100k_base")
+            # count the output tokens
+            token_count = len(encoding.encode(result["answer"]))
+            # compute rate
+            tokens_per_sec = token_count / elapsed_time if elapsed_time > 0 else 0
 
 
-            # Save the LLM's response to the chat history.
-            chat_history.add_ai_message(result["answer"])
-            
-            # Display the LLM's answer and its sources.
-            st.subheader("Answer")
-            st.write(result["answer"])
-            
-            st.subheader("Sources")
-            for source in result["sources"]:
-                st.write(f"- {source}")
-            
-            
-            st.caption(f"⏱️ Response time: {minutes} min {seconds} sec")     
-            # =============================================================================
-            # Display the complete chat history for the current user.
-            # =============================================================================
-            st.header("Chat History")
-            # Assuming chat_history.messages returns a list of message objects with attributes `type` and `content`.
-            for message in chat_history.messages:
-                if message.type == "human":
-                    st.markdown(f"**User:** {message.content}")
-                elif message.type == "ai":
-                    st.markdown(f"**LLM:** {message.content}")
+        # Display chat history
+        for entry in reversed(st.session_state.chat_history):
+            st.markdown(f"**Q:** {entry['question']}")
+            st.markdown(f"**A:** {entry['answer']}")
+            if entry.get('sources'):
+                st.markdown("**Sources:**")
+                for src in set(entry['sources']):
+                    st.markdown(f"- {src}")
+            st.caption(f"⏱️ Response time: {minutes} min {seconds} sec")  
+            st.caption(f"🔢 Tokens: {token_count}   ⚡ {tokens_per_sec:.2f} tokens/sec")
+            st.caption(f"Model Used: {st.session_state.model_selected_llm}")
+            st.caption(f"Embedding Model Used: {st.session_state.model_selected_embedding}")
+            st.caption(f"Database Used: {st.session_state.vector_db_name}")     
+            st.divider()
 
+
+# ----------------------
+# Existing Databases
+# ----------------------
 with tabs[1]:
     st.title("🗂 Existing Vector Databases")
     db_dir = "vector_dbs"
@@ -195,3 +221,4 @@ with tabs[1]:
                         st.success(f"Deleted: {db_folder.name}")
                     except Exception as e:
                         st.error(f"Error deleting {db_folder.name}: {e}")
+
