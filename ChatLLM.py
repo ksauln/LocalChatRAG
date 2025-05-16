@@ -84,7 +84,7 @@ def query_llm_cot(question, db, model_selected_llm):
 def query_llm_norm(question, db, model_selected_llm):
     """Query the LLM using relevant document context with an standard approach."""
     
-    retriever = db.as_retriever(search_kwargs={"k": 5})
+    retriever = db.as_retriever(search_kwargs={"k": 10})
     llm = OllamaLLM(model=model_selected_llm)
 
     # Format retrieved documents
