@@ -6,9 +6,9 @@ This project provides a web-based chat application built with Streamlit that all
 - **Ingest Documents:** Recursively scan a folder (and its subdirectories) for DOCX, PDF, and TXT files.
 - **Process and Index:** Load and chunk the documents, then store them in a vector database using embeddings.
 - **Query with an LLM:** Use either chain-of-thought (CoT) or normal querying with a toggleable setting.
-- **Select Models Dynamically:** Choose which LLM and embedding model to use from the sidebar.
-- **Persist Chat History:** Save conversation history using SQLChatMessageHistory, tied to a user ID, with the option to clear history and start a new chat.
-- **See Metadata in Output:** Includes elapsed time info.
+- **Select Models Dynamically:** Choose which LLM to use from the sidebar.
+- **Chat History:** See prior questions asked during the session.
+- **See Metadata in Output:** Includes elapsed time and token info.
 - **Manage Vector DBs:** View and delete vector DBs from the sidebar interface.
 - **Concise Source Attribution:** Outputs unique file names of uploaded files referenced.
 
@@ -29,7 +29,7 @@ This project provides a web-based chat application built with Streamlit that all
 
 ## Overview
 
-The chat app allows users to easily upload a folder containing documents, process them into a searchable vector database, and then ask questions using a sophisticated LLM reasoning process. Each conversation is stored in a SQL-backed chat history, making it possible to review past interactions or clear them to start anew.
+The chat app allows users to easily upload a folder containing documents, process them into a searchable vector database, and then ask questions using a sophisticated LLM reasoning process.
 
 ### Preview
 
@@ -122,9 +122,8 @@ Streamlit frontend that allows:
 
 - Folder input or file upload  
 - Document processing and DB creation  
-- Dynamic selection of LLM and embedding model from the sidebar  
+- Dynamic selection of LLM from the sidebar  
 - Toggle between CoT or direct query mode  
-- Persistent conversation history (via `SQLChatMessageHistory`)  
 - Ability to clear history and start new chats  
 - View and delete existing vector DBs in the interface
 
