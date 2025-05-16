@@ -165,7 +165,7 @@ View and delete existing `.db` files from the sidebar interface.
 
 ### Chat History
 
-Tied to a unique session ID. Clear history to begin a new conversation.
+Refresh session to begin a new conversation.
 
 ### Performance Metadata
 
