@@ -22,7 +22,7 @@ This project provides a web-based chat application built with Streamlit that all
 - [Project Structure](#project-structure)
 - [Detailed Description](#detailed-description)
   - [Document Ingestion and Processing (`ChatUpload.py`)](#document-ingestion-and-processing-chatuploadpy)
-  - [LLM Querying with Chain-of-Thought (`ChatLLM.py`)](#llm-querying-with-chain-of-thought-chatllmpy)
+  - [LLM Querying (`ChatLLM.py`)](#llm-querying-chatllmpy)
   - [Chat Interface and Persistent History (`ChatUI.py`)](#chat-interface-and-persistent-history-chatuipy)
 - [How to Run the App](#how-to-run-the-app)
 - [Customization and Troubleshooting](#customization-and-troubleshooting)
