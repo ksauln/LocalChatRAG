@@ -4,7 +4,7 @@ from langchain_ollama import OllamaLLM
 def query_llm_cot(question, db, model_selected_llm):
     """Query the LLM using relevant document context with an advanced chain-of-thought approach."""
     
-    retriever = db.as_retriever(search_kwargs={"k": 5})
+    retriever = db.as_retriever(search_kwargs={"k": 10})
     llm = OllamaLLM(model=model_selected_llm)
 
     # Format retrieved documents
@@ -94,10 +94,6 @@ def query_llm_norm(question, db, model_selected_llm):
     retrieved_docs = retriever.invoke(question)
     formatted_context = format_docs(retrieved_docs)
     sources = [doc.metadata.get("source", "Unknown") for doc in retrieved_docs]
-
-    #Extra key words from the question using LLM
-    #use those key words to parse though the document for RAG
-    #pull out those docs to use?
 
     # **Answer the question in one prompt**
     prompt = f"""For the given question use the context provided to answer it. Use only the context provided. 
