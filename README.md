@@ -3,7 +3,7 @@
 # Chat App with Document Ingestion, LLM Querying, and Persistent Chat History
 
 This project provides a web-based chat application built with Streamlit that allows users to:
-- **Ingest Documents:** Recursively scan a folder (and its subdirectories) for DOCX, PDF, and TXT files.
+- **Ingest Documents:** Upload multiple files of your choice (DOCX, PDF, and TXT files).
 - **Process and Index:** Load and chunk the documents, then store them in a vector database using embeddings.
 - **Query with an LLM:** Use either chain-of-thought (CoT) or normal querying with a toggleable setting.
 - **Select Models Dynamically:** Choose which LLM to use from the sidebar.
@@ -87,11 +87,11 @@ pip install streamlit langchain langchain_community chromadb python-docx PyPDF2
 
 **Purpose**
 
-Scans a specified folder and subdirectories for DOCX, PDF, and TXT files, loads them using format-specific loaders, and extracts metadata (like filenames).
+Select desired files to upload for DOCX, PDF, and TXT files, loads them using format-specific loaders, and extracts metadata (like filenames).
 
 **Key Functions**
 
-- `load_documents(root_folder_path)`: Recursively searches for supported files and loads them.
+- `load_uploaded_documents(uploaded_files)`: Uploads supported files and loads them.
 - `chunk_text(documents, chunk_size=300, chunk_overlap=125)`: Breaks text into manageable chunks for vector DB storage.
 - `create_or_update_vector_db(chunks, model_selected_embedding, db_path)`: Stores chunks using embedding model into a vector DB.
 
