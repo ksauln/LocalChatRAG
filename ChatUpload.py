@@ -97,7 +97,7 @@ def load_documents(root_folder_path):
     return documents
 '''
 
-def chunk_text(documents, chunk_size=300, chunk_overlap=125):
+def chunk_text(documents, chunk_size, chunk_overlap):
     """Split the text from documents into smaller chunks to facilitate processing.
     
     - Small Chunks (e.g., 256-512 tokens):
@@ -137,14 +137,21 @@ def create_or_update_vector_db(chunks, model_selected_embedding, db_path):
         
         # Extract texts and metadata (filenames) for new documents
         texts = [doc.page_content for doc in chunks if doc.page_content.strip()]
-        metadatas = [{"source": doc.metadata.get("source", f"document_{i}")} for i, doc in enumerate(chunks)]
+        metadatas = [{"source": doc.metadata.get("source", f"document_{i}"),
+                      "embedding_model": model_selected_embedding
+                      } 
+                      for i, doc in enumerate(chunks)]
         
         vectordb.add_texts(texts=texts, metadatas=metadatas)
+
         print("VectorDB updated with new documents!")
     else:
         print("No existing VectorDB found. Creating a new one...")
         texts = [doc.page_content for doc in chunks if doc.page_content.strip()]
-        metadatas = [{"source": doc.metadata.get("source", f"document_{i}")} for i, doc in enumerate(chunks)]
+        metadatas = [{"source": doc.metadata.get("source", f"document_{i}"),
+                      "embedding_model": model_selected_embedding
+                      } 
+                      for i, doc in enumerate(chunks)]
         
         vectordb = Chroma.from_texts(
             texts=texts,

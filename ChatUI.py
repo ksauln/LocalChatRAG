@@ -31,6 +31,8 @@ def init_session_state():
         'model_selected_llm': 'llama3.2',
         'model_selected_embedding': 'nomic-embed-text',
         'reasoning_mode': 'Standard',
+        'chunk_size': 300,
+        'chunk_overlap': 125,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -78,6 +80,25 @@ st.session_state.reasoning_mode = st.sidebar.radio(
     index=["Standard", "Chain-of-Thought"].index(st.session_state.reasoning_mode)
 )
 
+#chunking options
+st.sidebar.markdown("### Chunking Options")
+st.sidebar.slider(
+    "Chunk size",
+    min_value=100,
+    max_value=2000,
+    step=50,
+    value=st.session_state.chunk_size,
+    key="chunk_size"
+)
+st.sidebar.slider(
+    "Chunk overlap",
+    min_value=0,
+    max_value=st.session_state.chunk_size,
+    step=25,
+    value=st.session_state.chunk_overlap,
+    key="chunk_overlap"
+)
+
 # Refresh session button
 if st.sidebar.button("🔄 Refresh Session"):
     st.session_state.chat_history = []
@@ -122,7 +143,7 @@ with tabs[0]:
         else:
             st.success(f"Loaded {len(documents)} documents.")
             with st.spinner("Chunking documents..."):
-                chunks = chunk_text(documents)
+                chunks = chunk_text(documents,st.session_state.chunk_size, st.session_state.chunk_overlap)
             st.success(f"Created {len(chunks)} text chunks.")
             db_path = os.path.join(DB_DIR, f"{new_db_name}.db")
             with st.spinner("Creating/updating vector database..."):
