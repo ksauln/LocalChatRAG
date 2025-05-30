@@ -68,7 +68,7 @@ source venv/bin/activate
 venv\Scripts\activate
 
 # Install required packages
-pip install streamlit langchain langchain_community chromadb python-docx PyPDF2
+pip install -r /path/to/requirements.txt
 ```
 
 ## Project Structure
